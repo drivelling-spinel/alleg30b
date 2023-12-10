@@ -86,7 +86,11 @@ static long midi_pos_counter;                   /* delta for midi_pos */
 volatile long _midi_tick = 0;                   /* counter for killing notes */
 
 static void midi_player();                      /* core MIDI player routine */
-static void prepare_to_play(MIDI *midi);
+static void prepare_to_play(MIDI *midi
+#ifdef FM_SECONDARY
+,int inital
+#endif
+);
 static void midi_lock_mem();
 
 static MIDI *midifile = NULL;                   /* the file that is playing */
@@ -115,6 +119,10 @@ static MIDI_VOICE midi_voice[MIDI_VOICES];      /* synth voice status */
 static MIDI_CHANNEL midi_channel[16];           /* MIDI channel info */
 static WAITING_NOTE midi_waiting[MIDI_VOICES];  /* notes still to be played */
 static PATCH_TABLE patch_table[128];            /* GM -> external synth */
+
+#ifdef FM_SECONDARY
+static char secondaries[MIDI_TRACKS];
+#endif
 
 static int midi_seeking;                        /* set during seeks */
 static int midi_looping;                        /* set during loops */
@@ -475,7 +483,11 @@ END_OF_FUNCTION(_midi_allocate_voice);
  *  and if it can't either cuts off an existing note, or if 'polite' is
  *  set, just stores the channel, note and volume in the waiting list.
  */
-static void midi_note_on(int channel, int note, int vol, int polite)
+static void midi_note_on(int channel, int note, int vol, int polite
+#ifdef FM_SECONDARY
+, int t
+#endif
+)
 {
    int c, layer, inst, bend, corrected_note;
 
@@ -531,6 +543,10 @@ static void midi_note_on(int channel, int note, int vol, int polite)
    }
    else {
       inst = midi_channel[channel].patch;
+#ifdef FM_SECONDARY
+      // yes, using channel here
+      if(t>=0 && secondaries[t] >= 0) inst += 1024;
+#endif
       corrected_note = note;
       bend = midi_channel[channel].pitch_bend;
       sort_out_pitch_bend(&bend, &corrected_note);
@@ -589,6 +605,8 @@ static void reset_controllers(int channel)
       case 2:  midi_channel[channel].pan = 24; break;
    }
 
+   midi_channel[channel].pan = 64;
+ 
    if (midi_driver->raw_midi) {
       midi_driver->raw_midi(0xB0+channel);
       midi_driver->raw_midi(10);
@@ -678,7 +696,7 @@ static void process_controller(int channel, int ctrl, int data)
 	 break;
 
       case 121:                                 /* reset all controllers */
-	 reset_controllers(channel);
+         reset_controllers(channel);
 	 break;
 
       case 123:                                 /* all notes off */
@@ -729,14 +747,22 @@ static END_OF_FUNCTION(process_meta_event);
 /* process_midi_event:
  *  Processes the next MIDI event on the specified track.
  */
-static void process_midi_event(unsigned char **pos, unsigned char *running_status, long *timer)
+static void process_midi_event(unsigned char **pos, unsigned char *running_status, long *timer
+#ifdef FM_SECONDARY
+, int t
+#endif
+)
 {
    unsigned char byte1, byte2; 
    int channel;
    unsigned char event;
    long l;
+   int effch = -1;
+#ifdef FM_SECONDARY
+   effch = t >= 0 ? secondaries[t] : -1;
+#endif
 
-   event = *((*pos)++); 
+   event = *((*pos)++);
 
    if (event & 0x80) {                          /* regular message */
       /* no running status for sysex and meta-events! */
@@ -758,16 +784,24 @@ static void process_midi_event(unsigned char **pos, unsigned char *running_statu
       midi_msg_callback(event, byte1, byte2);
 
    channel = event & 0x0F;
+#ifdef FM_SECONDARY
+   if(effch < 0) 
+#endif
+     effch = channel;
 
    switch (event>>4) {
 
       case 0x08:                                /* note off */
-	 midi_note_off(channel, byte1);
+         midi_note_off(effch, byte1);
 	 (*pos) += 2;
 	 break;
 
       case 0x09:                                /* note on */
-	 midi_note_on(channel, byte1, byte2, 1);
+         midi_note_on(effch, byte1, byte2, 1
+#ifdef FM_SECONDARY
+         , t
+#endif
+         );
 	 (*pos) += 2;
 	 break;
 
@@ -776,14 +810,14 @@ static void process_midi_event(unsigned char **pos, unsigned char *running_statu
 	 break;
 
       case 0x0B:                                /* control change */
-	 process_controller(channel, byte1, byte2);
+         process_controller(effch, byte1, byte2);
 	 (*pos) += 2;
 	 break;
 
       case 0x0C:                                /* program change */
-	 midi_channel[channel].patch = byte1;
+         midi_channel[effch].patch = byte1;
 	 if (midi_driver->raw_midi)
-	    raw_program_change(channel, byte1);
+            raw_program_change(effch, byte1);
 	 (*pos) += 1;
 	 break;
 
@@ -792,7 +826,7 @@ static void process_midi_event(unsigned char **pos, unsigned char *running_statu
 	 break;
 
       case 0x0E:                                /* pitch bend */
-	 midi_channel[channel].new_pitch_bend = byte1 + (byte2<<7);
+         midi_channel[effch].new_pitch_bend = byte1 + (byte2<<7);
 	 (*pos) += 2;
 	 break;
 
@@ -834,7 +868,6 @@ static void process_midi_event(unsigned char **pos, unsigned char *running_statu
 static END_OF_FUNCTION(process_midi_event);
 
 
-
 /* midi_player:
  *  The core MIDI player: to be used as a timer callback.
  */
@@ -870,7 +903,11 @@ static void midi_player()
 	 while (midi_track[c].timer <= 0) { 
 	    process_midi_event(&midi_track[c].pos, 
 			       &midi_track[c].running_status,
-			       &midi_track[c].timer); 
+                               &midi_track[c].timer
+#ifdef FM_SECONDARY
+                               ,c
+#endif
+                               );
 
 	    /* read next time offset */
 	    if (midi_track[c].pos) { 
@@ -933,9 +970,13 @@ static void midi_player()
 	    goto do_it_all_again;
 	 }
 	 else {
-	    for (c=0; c<16; c++)
-	       all_notes_off(c);
-	    prepare_to_play(midifile);
+            for (c=0; c<16; c++)
+               all_notes_off(c);
+            prepare_to_play(midifile
+#ifdef FM_SECONDARY
+            ,0
+#endif
+            );
 	    goto do_it_all_again;
 	 }
       }
@@ -961,7 +1002,11 @@ static void midi_player()
    for (c=0; c<MIDI_VOICES; c++)
       if (midi_waiting[c].note >= 0)
 	 midi_note_on(midi_waiting[c].channel, midi_waiting[c].note,
-		      midi_waiting[c].volume, 0);
+		      midi_waiting[c].volume, 0
+#ifdef FM_SECONDARY
+                      , -1
+#endif
+                      );
 
    midi_semaphore = FALSE;
 }
@@ -1138,7 +1183,11 @@ static int load_patches(MIDI *midi)
 /* prepare_to_play:
  *  Sets up all the global variables needed to play the specified file.
  */
-static void prepare_to_play(MIDI *midi)
+static void prepare_to_play(MIDI *midi
+#ifdef FM_SECONDARY
+, int initial
+#endif
+)
 {
    int c;
 
@@ -1168,6 +1217,15 @@ static void prepare_to_play(MIDI *midi)
 	 midi_track[c].pos = midi->track[c].data;
 	 midi_track[c].timer = parse_var_len(&midi_track[c].pos);
 	 midi_track[c].timer *= midi_speed;
+#ifdef FM_SECONDARY
+         if(initial) {
+           secondaries[c] = -1;
+           if(midi->track[c].data[midi->track[c].len - 2] == 0x23) {
+             secondaries[c] = midi->track[c].data[midi->track[c].len - 1];
+             midi->track[c].len -= 2;
+           }
+         }
+#endif
       }
       else {
 	 midi_track[c].pos = NULL;
@@ -1208,7 +1266,11 @@ int play_midi(MIDI *midi, int loop)
       midi_loop_start = -1;
       midi_loop_end = -1;
 
-      prepare_to_play(midi);
+      prepare_to_play(midi
+#ifdef FM_SECONDARY
+      , 1
+#endif
+      );
 
       /* arbitrary speed, midi_player() will adjust it */
       install_int(midi_player, 20);
@@ -1290,6 +1352,13 @@ END_OF_FUNCTION(midi_resume);
 
 
 
+int midi_is_playing()
+{
+   return !!midifile;  
+}
+
+END_OF_FUNCTION(midi_is_playing);
+
 /* midi_seek:
  *  Seeks to the given midi_pos in the current MIDI file. If the target 
  *  is earlier in the file than the current midi_pos it seeks from the 
@@ -1334,7 +1403,11 @@ int midi_seek(int target)
 
    /* are we seeking backwards? If so, skip back to the start of the file */
    if (target <= midi_pos)
-      prepare_to_play(midifile);
+      prepare_to_play(midifile
+#ifdef FM_SECONDARY
+      , 0
+#endif
+      );
 
    /* now sit back and let midi_player get to the position */
    while ((midi_pos < target) && (midi_pos != -1)) {
@@ -1391,7 +1464,11 @@ int midi_seek(int target)
    }
 
    if ((midi_loop) && (!midi_looping)) {  /* was file was looped? */
-      prepare_to_play(old_midifile);
+      prepare_to_play(old_midifile
+#ifdef FM_SECONDARY
+      , 0
+#endif
+      );
       install_int(midi_player, 20);
       return 2;                           /* seek past EOF => file restarted */
    }
@@ -1416,7 +1493,11 @@ void midi_out(unsigned char *data, int length)
    _midi_tick++;
 
    while (pos < data+length)
-      process_midi_event(&pos, &running_status, &timer);
+      process_midi_event(&pos, &running_status, &timer
+#ifdef FM_SECONDARY
+      , -1
+#endif
+      );
 
    midi_semaphore = FALSE;
 }
@@ -1477,6 +1558,9 @@ static void midi_lock_mem()
    LOCK_VARIABLE(midi_sysex_callback);
    LOCK_VARIABLE(midi_seeking);
    LOCK_VARIABLE(midi_looping);
+#ifdef FM_SECONDARY
+   LOCK_VARIABLE(secondaries);
+#endif
    LOCK_FUNCTION(parse_var_len);
    LOCK_FUNCTION(raw_program_change);
    LOCK_FUNCTION(midi_note_off);
@@ -1492,6 +1576,7 @@ static void midi_lock_mem()
    LOCK_FUNCTION(prepare_to_play);
    LOCK_FUNCTION(play_midi);
    LOCK_FUNCTION(stop_midi);
+   LOCK_FUNCTION(midi_is_playing);
    LOCK_FUNCTION(midi_pause);
    LOCK_FUNCTION(midi_resume);
    LOCK_FUNCTION(midi_seek);

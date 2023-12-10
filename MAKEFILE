@@ -125,14 +125,14 @@ endif
 endif
 endif
 
-CFLAGS = -I. -Isrc -Isrc/djgpp -I$(OBJ) $(WFLAGS) $(OFLAGS)
+CFLAGS = -I. -Isrc -Isrc/djgpp -I$(OBJ) $(WFLAGS) $(OFLAGS) $(DFLAGS) -DFM_SECONDARY
 SFLAGS = -I. -Isrc -Isrc/djgpp -I$(OBJ) $(WFLAGS)
 
-VPATH = demo docs examples setup src tests tools src/djgpp
+VPATH = demo docs examples setup src tests tools src/djgpp alinit
 
 PROGRAMS = demo keyconf setup digitest mathtest miditest play playfli test \
 	   vesainfo colormap dat dat2s exedat grabber pack pat2dat rgbmap \
-	   examples
+           examples alinit
 
 SYSOBJS = adlib.o ati.o awedata.o bank.o cirrus.o dma.o dpmi.o emu8k.o \
 	  emu8kmid.o wss.o irq.o irqwrap.o joystick.o keyboard.o mouse.o \
@@ -249,6 +249,12 @@ setup/setup.exe: $(OBJ)/setup.o $(OBJ)/setupdat.o $(LIB)
 	-$(DJP) -q setup/setup.exe
     endif
 
+alinit/alinit.exe: $(OBJ)/alinit.o $(OBJ)/setupdat.o $(LIB)
+	gcc $(LFLAGS) -o alinit/alinit.exe $(OBJ)/alinit.o $(OBJ)/setupdat.o $(LIB)
+    ifneq ($(wildcard $(DJP)),)
+	-$(DJP) -q alinit/alinit.exe
+    endif
+
 tools/dat.exe: $(OBJ)/dat.o $(OBJ)/datedit.o $(LIB)
 	gcc $(LFLAGS) -o tools/dat.exe $(OBJ)/dat.o $(OBJ)/datedit.o $(LIB)
 
@@ -295,6 +301,7 @@ grabber: tools/grabber.exe
 pack: tools/pack.exe
 pat2dat: tools/pat2dat.exe
 rgbmap: tools/rgbmap.exe
+alinit: alinit/alinit.exe
 
 examples: examples/ex1.exe 
 examples: examples/ex17.exe 
@@ -319,7 +326,7 @@ INTERNAL_DEPS = adlib.o allegro.o ati.o blit.o bmp.o cirrus.o config.o cpu.o \
 		readbmp.o sb.o setup.o sprite.o s3.o sound.o spline.o \
 		stream.o text.o tga.o timer.o tseng.o vbeaf.o vesa.o vga.o \
 		video7.o vtable8.o vtable15.o vtable16.o vtable24.o vtable32.o \
-                essaudio.o sndscape.o guspnp.o
+                essaudio.o sndscape.o guspnp.o alinit.o
 
 $(addprefix $(OBJ)/, $(INTERNAL_DEPS)): $(INTERNAL_H)
 

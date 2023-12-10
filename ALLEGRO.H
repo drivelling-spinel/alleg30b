@@ -1490,7 +1490,7 @@ extern volatile int fli_timer;         /* for timing FLI playback */
 
 #define DIGI_VOICES           32       /* Theoretical maximums: */
 #define MIDI_VOICES           32       /* actual drivers may not be */
-#define MIDI_TRACKS           32       /* able to handle this many */
+#define MIDI_TRACKS           64       /* able to handle this many */
 
 
 typedef struct SAMPLE                  /* a sample */
@@ -1775,6 +1775,8 @@ void remove_sound();
 void set_volume(int digi_volume, int midi_volume);
 
 int load_ibk(char *filename, int drums);
+int load_op2(char *filename);
+int load_op2_extra(char *filename, char * secondaries);
 
 SAMPLE *load_sample(char *filename);
 SAMPLE *load_wav(char *filename);
@@ -1831,6 +1833,7 @@ int play_looped_midi(MIDI *midi, int loop_start, int loop_end);
 void stop_midi();
 void midi_pause();
 void midi_resume();
+int midi_is_playing();
 int midi_seek(int target);
 void midi_out(unsigned char *data, int length);
 int load_midi_patches();

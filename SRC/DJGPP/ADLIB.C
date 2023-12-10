@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <dos.h>
 
+#include <string.h>
+
 #include "allegro.h"
 #include "internal.h"
 
@@ -95,6 +97,10 @@ typedef struct FM_INSTRUMENT
 // include the GM patch set (static data) 
 #include "fm_instr.h"
 
+#ifdef FM_SECONDARY
+static FM_INSTRUMENT fm_secondary[128];
+#endif
+
 // is the OPL in percussion mode? 
 static int fm_drum_mode = FALSE;
 
@@ -143,10 +149,17 @@ static long fm_drum_cached_time[5];
 // various bits of information about the current state of the FM chip 
 static unsigned char fm_drum_mask;
 static unsigned char fm_key[18];
-static unsigned char fm_keyscale[18];
+static unsigned char fm_keyscale1[18];
+static unsigned char fm_keyscale2[18];
 static unsigned char fm_feedback[18];
-static int fm_level[18];
+static int fm_noteoffs[18];
+#ifdef FM_SECONDARY
+static int fm_finetune[18];
+#endif
+static int fm_level1[18];
+static int fm_level2[18];
 static int fm_patch[18];
+
 
 #define VOICE_OFFSET(x)     ((x < 9) ? x : 0x100+x-9)
 
@@ -169,6 +182,39 @@ static void fm_write(int reg, unsigned char data)
 }
 static END_OF_FUNCTION(fm_write);
 
+#ifdef 0
+static void fm_dump_instruments(FILE * f, FM_INSTRUMENT * inst, int count)
+{
+  int i = 0;
+  for(; i < count ; i ++, inst ++)
+  {
+   unsigned char characteristic1;
+   unsigned char characteristic2;
+   unsigned char level1;
+   unsigned char level2;
+   unsigned char attackdecay1;
+   unsigned char attackdecay2;
+   unsigned char sustainrelease1;
+   unsigned char sustainrelease2;
+   unsigned char wave1;
+   unsigned char wave2;
+   unsigned char feedback;
+   unsigned char freq;
+   unsigned char key;
+   unsigned char type;
+
+    fprintf(f, "[%03d]: t=%d, chr1=%02x scl1=%02x atk1=%02x, sus1=%02x, wav1=%02x, "
+      "chr2=%02x scl2=%02x atk2=%02x, sus2=%02x, wav2=%02x, "
+      "fd=%02x key=%02x freq=%02x\n",
+      i, inst->type,
+      inst->characteristic1, inst->level1, inst->attackdecay1, inst->sustainrelease1, inst->wave1,
+      inst->characteristic2, inst->level2, inst->attackdecay2, inst->sustainrelease2, inst->wave2,
+      inst->feedback, inst->key, inst->freq);
+  }
+}
+static END_OF_FUNCTION(fm_dump_instruments);
+#endif
+
 // ----------------------------------------------------------------------------------------------
 // fm_reset: Resets the FM chip. If enable is set, puts OPL3 cards into OPL3 mode,
 //  otherwise puts them into OPL2 emulation mode.
@@ -185,6 +231,8 @@ static void fm_reset(int enable)
 
       fm_write(0x105, 1);                 // enable OPL3 mode 
 
+      fm_write(0x104, 0);                 
+
       for (i=0x1F5; i>0x105; i--)
 	 fm_write(i, 0);
 
@@ -199,21 +247,26 @@ static void fm_reset(int enable)
       fm_delay_2 = 35;
 
       if (midi_card == MIDI_2XOPL2) {     // if we have a second OPL2... 
+
 	 for (i=0x1F5; i>0x100; i--)
 	    fm_write(i, 0);
 
 	 fm_write(0x101, 0x20); 
-	 fm_write(0x1BD, 0xC0); 
+//         fm_write(0x1BD, 0xC0); 
+         fm_write(0x1BD, 0x0); 
       }
    }
 
    for (i=0; i<midi_adlib.voices; i++) {
       fm_key[i] = 0;
-      fm_keyscale[i] = 0;
+      fm_keyscale1[i] = 0;
+      fm_keyscale2[i] = 0;
       fm_feedback[i] = 0;
-      fm_level[i] = 0;
-      fm_patch[i] = -1;
-      fm_write(0x40+fm_offset[i], 63);
+      fm_noteoffs[i] = 0;
+#ifdef FM_SECONDARY
+      fm_finetune[i] = 0;
+#endif
+      fm_write(0x40+fm_offset[i], 63);                                  
       fm_write(0x43+fm_offset[i], 63);
    }
 
@@ -226,28 +279,32 @@ static void fm_reset(int enable)
    }
 
 
-//   fm_write(0x01, 0x20);                  // turn on wave form control 
+   fm_write(0x01, 0x20);                  // turn on wave form control 
+
+   fm_write(0x08, 0x40);                  // turn off CSW mode
 
    fm_drum_mode = FALSE;
 //   fm_drum_mask = 0xC0;
-//   fm_write(0xBD, fm_drum_mask);          // set AM and vibrato to high 
-
-
-    // GB 2014:
-    if (midi_card == MIDI_OPL3)
-    {
-	 fm_write(0x105, 0x01);	// enable YMF262/OPL3 mode
-	 fm_write(0x104, 0x00);	// disable 4-operator mode
-    } 
-     fm_write(0x01, 0x20);	// enable Waveform Select
-     fm_write(0x08, 0x40);	// turn off CSW mode
-     fm_write(0xBD, 0x00);	// set vibrato/tremolo depth to low, set melodic mode
-
-    
+   fm_drum_mask = 0;
+   fm_write(0xBD, fm_drum_mask);          // set AM and vibrato to high 
 
    midi_adlib.xmin = -1;
    midi_adlib.xmax = -1;
-}
+#ifdef 0
+   {
+     FILE * f = fopen("instruments.txt", "wt");
+     if(f)
+       {
+         fprintf(f, "*** INSTRUMENTS ***\n");
+         fm_dump_instruments(f, fm_instrument, 128);
+         fprintf(f, "*** DRUMS ***\n");
+         fm_dump_instruments(f, fm_drum, 47);
+         fclose(f);
+       }
+   }
+#endif
+
+}                           
 static END_OF_FUNCTION(fm_reset);
 
 // ----------------------------------------------------------------------------------------------
@@ -285,9 +342,22 @@ static inline void fm_set_voice(int voice, FM_INSTRUMENT *inst)
    //fm_write(0x43+fm_offset[voice],0x3F);
 
    // store some info 
-   fm_keyscale[voice] = inst->level2 & 0xC0;
-   fm_level[voice] = 63 - (inst->level2 & 63);
+   fm_keyscale1[voice] = inst->level1 & 0xC0;
+   fm_level1[voice] = 63 - (inst->level1 & 63);
+   fm_keyscale2[voice] = inst->level2 & 0xC0;
+   fm_level2[voice] = 63 - (inst->level2 & 63);
    fm_feedback[voice] = inst->feedback;
+   fm_noteoffs[voice] = 0;
+#ifdef FM_SECONDARY
+   fm_finetune[voice] = 0;
+#endif
+   if(!inst->type)
+   {
+      fm_noteoffs[voice] = (int)(char)(inst->freq);
+#ifdef FM_SECONDARY
+      fm_finetune[voice] = (int)(char)(inst->key);
+#endif
+   }
 
    // write the new data 
    fm_write(0x20+fm_offset[voice], inst->characteristic1);
@@ -305,7 +375,7 @@ static inline void fm_set_voice(int voice, FM_INSTRUMENT *inst)
 
    // on OPL3, 0xC0 contains pan info, so don't set it until fm_key_on()
    if (midi_card != MIDI_OPL3)
-      fm_write(0xC0+VOICE_OFFSET(voice), inst->feedback);
+      fm_write(0xC0+VOICE_OFFSET(voice), inst->feedback | 0x30);
 }
 
 // ----------------------------------------------------------------------------------------------
@@ -425,7 +495,7 @@ static void fm_key_on(int inst, int note, int bend, int vol, int pan)
 {
    int voice, druminst=-1;
 
-	  if (inst > 127) 
+          if (inst > 127 && inst < 1024) 
       {
 		 druminst=inst-163;
          if (druminst < 0)       druminst = 0;
@@ -440,8 +510,8 @@ static void fm_key_on(int inst, int note, int bend, int vol, int pan)
 	 inst = 46;
       fm_trigger_drum(inst, vol);
    }
-   else */ 
-   
+   else */
+
    {                                         // regular instrument 
       if (midi_card == MIDI_2XOPL2) {
 	 // the SB Pro-1 has fixed pan positions per voice... 
@@ -458,23 +528,30 @@ static void fm_key_on(int inst, int note, int bend, int vol, int pan)
 
       // make sure the voice isn't sounding 
       fm_write(0x43+fm_offset[voice], 63);
-      if (fm_feedback[voice] & 1)
+//      if (fm_feedback[voice] & 1)
 	  fm_write(0x40+fm_offset[voice], 63);
 
 
 	  // make sure the voice is set up with the right sound 
       if (inst != fm_patch[voice]) {
-     	 if (druminst==-1) fm_set_voice(voice, fm_instrument+inst); // GB 2014, not for drums
-     	 else              fm_set_voice(voice, fm_drum+druminst); // GB 2014, not for drums
+     	 if (druminst==-1)
+#ifdef FM_SECONDARY
+           if (inst >= 1024)
+             fm_set_voice(voice, fm_secondary + inst - 1024);
+           else
+#endif               
+         fm_set_voice(voice, fm_instrument+inst); // GB 2014, not for drums
+         else fm_set_voice(voice, fm_drum+druminst); // GB 2014, not for drums
     	 fm_patch[voice] = inst;
       }
 
       // set pan position 
       if (midi_card == MIDI_OPL3) 
 	  {
-              if (pan <  48) pan = 0x10; // left 
-	     else if (pan >= 80) pan = 0x20; // right
-	     else                pan = 0x30; // both
+             pan -= 64;
+             if (pan <  -36) pan = 0x10; // left 
+             else if (pan > 36) pan = 0x20; // right
+             else                pan = 0x30; // both
          fm_write(0xC0+VOICE_OFFSET(voice), pan | fm_feedback[voice]);
       }
 
@@ -490,8 +567,8 @@ static void fm_key_on(int inst, int note, int bend, int vol, int pan)
 		   //fm_set_pitch(voice, fm_drum[druminst].type, 0);
 		   //printf("DRUM: %02d  f=%02xh  k=%02xh v=%d  b=%d\n", druminst,fm_drum[druminst].freq, fm_drum[druminst].key, vol, bend);
     	 }
- 		 else fm_set_pitch(voice, note, bend);
-		 fm_set_volume(voice, vol);
+                 else fm_set_pitch(voice, note, bend);
+                 fm_set_volume(voice, vol);
 		 //fm_set_drum_vol_op1(voice, vol);
  	     return;
       }
@@ -515,10 +592,14 @@ static END_OF_FUNCTION(fm_key_off);
 // fm_set_volume: Sets the volume of the specified voice (vol range 0-127).
 static void fm_set_volume(int voice, int vol)
 {
-   vol = fm_level[voice] * fm_vol_table[vol] / 128;
-   fm_write(0x43+fm_offset[voice], (63-vol) | fm_keyscale[voice]);
+   int _vol = fm_level2[voice] * fm_vol_table[vol] / 128;
+   fm_write(0x43+fm_offset[voice], (63-_vol) | fm_keyscale2[voice]);
+   _vol = fm_level1[voice] * fm_vol_table[vol] / 128;
    if (fm_feedback[voice] & 1)
-      fm_write(0x40+fm_offset[voice], (63-vol) | fm_keyscale[voice]);
+      fm_write(0x40+fm_offset[voice], (63-vol) | fm_keyscale1[voice]);
+   else
+      fm_write(0x40+fm_offset[voice], (63-fm_level1[voice]) | fm_keyscale1[voice]);
+
 }
 static END_OF_FUNCTION(fm_set_volume);
 
@@ -589,12 +670,26 @@ static unsigned short  pitchtable[] = {				    // pitch wheel
 // GB 2014: from MUSlib MLOPL.C, sounds more authentic.
 static void fm_set_pitch(int voice, int note, int bend)
 {
-   unsigned int freq = freqtable[note];
-   unsigned int octave = octavetable[note];
+   unsigned int freq = 0;
+   unsigned int octave = 0;
+
+   note += fm_noteoffs[voice];
+   if(note < 0)
+     note = 0;
+   else if(note > 127)
+     note = 127;
+
+   freq = freqtable[note];
+   octave = octavetable[note];
+
+   bend >>= 6;
+#ifdef FM_SECONDARY
+   if(fm_finetune[voice])
+     bend += fm_finetune[voice];
+#endif
 
    if (bend) //Allegro: bend ranges from 0 (no pitch change) to 0xFFF (almost a semitone sharp) = 4096
    {
-	  bend=bend/32;
 	  // original muslib method:
 	  if (bend > 127) bend = 127;
       else if (bend < -128) bend = -128;
@@ -703,9 +798,15 @@ static int fm_load_patches(char *patches, char *drums)
 
    for (i=6; i<9; i++) {
       fm_key[i] = 0;
-      fm_keyscale[i] = 0;
+      fm_keyscale1[i] = 0;
+      fm_keyscale2[i] = 0;
       fm_feedback[i] = 0;
-      fm_level[i] = 0;
+      fm_noteoffs[i] = 0;
+#ifdef FM_SECONDARY
+      fm_finetune[i] = 0;
+#endif
+      fm_level1[i] = 0;
+      fm_level2[i] = 0;
       fm_patch[i] = -1;
       fm_write(0x40+fm_offset[i], 63);
       fm_write(0x43+fm_offset[i], 63);
@@ -854,12 +955,12 @@ static int fm_detect()
 }
 
 // ----------------------------------------------------------------------------------------------
-// load_ibk: Reads in a .IBK patch set file, for use by the Adlib driver.
+// load_ibk: Reads in a .IBK patch set file, for use by the Adlib driver
 int load_ibk(char *filename, int drums)
 {
    char sig[4];
    FM_INSTRUMENT *inst;
-   int c, note, oct, skip, count;
+   int c, note, oct, skip, count, trans;
 
    PACKFILE *f = pack_fopen(filename, F_READ);
    if (!f)
@@ -880,6 +981,9 @@ int load_ibk(char *filename, int drums)
       inst = fm_instrument;
       skip = 0;
       count = 128;
+#ifdef FM_SECONDARY
+      memset(fm_secondary, 0, sizeof(FM_INSTRUMENT) * (128 + 47));
+#endif
    }
 
    for (c=0; c<skip*16; c++)
@@ -908,30 +1012,33 @@ int load_ibk(char *filename, int drums)
 	    default: inst->type = 0;      break;
 	 }
 
-	 pack_getc(f);
-
-	 note = pack_getc(f);
+         inst->freq = (char)pack_getc(f) - 12;
+         inst->key = 0;
+         note = pack_getc(f);
 	 oct = 1;
 
-     oct  = note / 12; // GB 2014, Duke 3d method, not the MUSlib method!
-     note = note % 12; 
+         if(inst->type)
+         {
+           note += (int)(char)inst->freq;
+           oct  = note / 12; // GB 2014, Duke 3d method, not the MUSlib method!
+           note = note % 12; 
 
-     // note -= 24;
-	 // while (note >= 12) {
-	 //    note -= 12;
-	 //    oct++;
-	 // }
+           // note -= 24;
+           // while (note >= 12) {
+           //    note -= 12;
+           //    oct++;
+           // }
 
-	 inst->freq = fm_freq[note];
-	 inst->key = (oct<<2) | (fm_freq[note] >> 8);
-     }
+           inst->freq = fm_freq[note];
+           inst->key = (oct<<2) | (fm_freq[note] >> 8);
+         }
+      }
       else {
 	 inst->type = 0;
-	 inst->freq = 0;
 	 inst->key = 0;
 
-	 pack_getc(f);
-	 pack_getc(f);
+         pack_getc(f);
+         inst->freq = (char)pack_getc(f) - 12;
 	 pack_getc(f);
       }
 
@@ -944,6 +1051,257 @@ int load_ibk(char *filename, int drums)
    return 0;
 }
 
+
+int load_op2_buffer(char *data, char * secondaries)
+{
+   FM_INSTRUMENT *inst;
+#ifdef FM_SECONDARY
+   FM_INSTRUMENT *secondary;
+#endif
+
+   int c, count, scale;
+
+   if (memcmp(data, "#OPL_II##", 8) != 0) {
+      return -1;
+   }
+
+   data += 8;
+
+   inst = fm_instrument;
+#ifdef FM_SECONDARY
+   secondary = fm_secondary;
+#endif
+   count = 128 + 47;
+
+#ifdef FM_SECONDARY
+   memset(fm_secondary, 0, sizeof(FM_INSTRUMENT) * 128);
+#endif
+   memset(fm_instrument, 0, sizeof(FM_INSTRUMENT) * 128);
+   memset(fm_drum, 0, sizeof(FM_INSTRUMENT) * 47);
+
+   for (c=0; c<count; c++) {
+      short offs = 0;
+      unsigned char note;
+      char tune;
+      int has_secondary;
+
+      if(count < 128) secondaries[count] = 0;
+
+      inst->type = (*data)&1;
+#ifdef FM_SECONDARY
+      has_secondary = (*data)&4;
+#endif
+      data += 2;
+      tune = *(((char*)data++));
+      note = *(data++);
+
+      inst->characteristic1 = *(data++);
+      inst->attackdecay1 = *(data++);
+      inst->sustainrelease1 = *(data++);
+      inst->wave1 = *(data++);
+      scale = *(data++); //keyscale
+      inst->level1 = (*(data++) & 63) | (scale);
+
+      inst->feedback = *(data++);
+
+      inst->characteristic2 = *(data++);
+      inst->attackdecay2 = *(data++);
+      inst->sustainrelease2 = *(data++);
+      inst->wave2 = *(data++);
+      scale = *(data++); //keyscale
+      inst->level2 = (*(data++) & 63) | (scale);
+
+      data++; //unused
+
+      offs = *(data++);
+      offs |= (*(data++) << 8);
+
+      inst->key = 0;
+      inst->freq = offs;
+      if(c < 128)
+      {
+        inst->type = 0;
+      }
+      else
+      {
+        if(inst->type)
+        {
+          int oct = 1;
+          int _note = note + offs;
+          oct  = _note / 12; // GB 2014, Duke 3d method, not the MUSlib method!
+          _note = _note % 12; 
+
+          inst->freq = fm_freq[_note];
+          inst->key = (oct<<2) | (fm_freq[_note] >> 8);
+        }
+      }
+
+#ifdef FM_SECONDARY
+      if(has_secondary && c < 128)
+      {
+        secondaries[c] = 1;
+        secondary->characteristic1 = *(data++);
+        secondary->attackdecay1 = *(data++);
+        secondary->sustainrelease1 = *(data++);
+        secondary->wave1 = *(data++);
+        scale = *(data++); //keyscale
+        secondary->level1 = (*(data++) & 63) | (scale);
+     
+        secondary->feedback = *(data++);
+
+        secondary->characteristic2 = *(data++);
+        secondary->attackdecay2 = *(data++);
+        secondary->sustainrelease2 = *(data++);
+        secondary->wave2 = *(data++);
+        scale = *(data++); //keyscale
+        secondary->level2 = (*(data++) & 63) | (scale);
+
+        data++; //unused
+
+        offs = *(data++);
+        offs |= (*(data++) << 8);
+
+        secondary->key = tune - 0x80;
+        secondary->freq = offs;
+        secondary->type = 0;
+      }
+      else
+      {
+        if(c < 128) memcpy(secondary, inst, sizeof(*inst));
+        data += 16;
+      }
+#else
+      data += 16;
+#endif
+      inst++;
+#ifdef FM_SECONDARY
+      secondary++;
+#endif
+      if(c == 127)
+        inst = fm_drum;
+   }
+   return 0;
+}
+
+// ----------------------------------------------------------------------------------------------
+// load_op2: Reads in a .OP2 patch set file, for use by the Adlib driver
+int load_op2_extra(char *filename, char *secondaries)
+{
+   char sig[8];
+   FM_INSTRUMENT *inst;
+   int c, count, scale;
+   PACKFILE *f;
+
+   if(*filename == '#')
+     return load_op2_buffer(filename, secondaries);
+
+   f = pack_fopen(filename, F_READ);
+   if (!f)
+      return -1;
+
+   pack_fread(sig, 8, f);
+   if (memcmp(sig, "#OPL_II##", 8) != 0) {
+      pack_fclose(f);
+      return -1;
+   }
+
+   inst = fm_instrument;
+   count = 128 + 47;
+
+#ifdef FM_SECONDARY
+   memset(fm_secondary, 0, sizeof(FM_INSTRUMENT) * (128 + 47));
+#endif
+   memset(fm_instrument, 0, sizeof(FM_INSTRUMENT) * 128);
+   memset(fm_drum, 0, sizeof(FM_INSTRUMENT) * 47);
+
+   for (c=0; c<count; c++) {
+      short offs = 0;
+      unsigned char note;
+
+      inst->type = 1 &  pack_getc(f); //header
+      pack_getc(f);
+
+      pack_getc(f); //finetune
+
+      note = pack_getc(f); //note
+
+
+      inst->characteristic1 = pack_getc(f);
+      inst->attackdecay1 = pack_getc(f);
+      inst->sustainrelease1 = pack_getc(f);
+      inst->wave1 = pack_getc(f);
+      scale = pack_getc(f); //keyscale
+      inst->level1 = (pack_getc(f) & 63) | (scale);
+
+      inst->feedback = pack_getc(f);
+
+      inst->characteristic2 = pack_getc(f);
+      inst->attackdecay2 = pack_getc(f);
+      inst->sustainrelease2 = pack_getc(f);
+      inst->wave2 = pack_getc(f);
+      scale = pack_getc(f); //keyscale
+      inst->level2 = (pack_getc(f) & 63) | (scale);
+
+      pack_getc(f); //unused
+
+      offs = pack_getc(f);
+      offs |= (pack_getc(f) << 8);
+
+      inst->key = 0;
+      inst->freq = offs;
+      if(c < 128)
+      {
+        inst->type = 0;
+      }
+      else
+      {
+        if(inst->type)
+        {
+          int oct = 1;
+          int _note = note + offs;
+          oct  = _note / 12; // GB 2014, Duke 3d method, not the MUSlib method!
+          _note = _note % 12; 
+
+          inst->freq = fm_freq[_note];
+          inst->key = (oct<<2) | (fm_freq[_note] >> 8);
+        }
+      }
+
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+
+      pack_getc(f);
+
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+      pack_getc(f);
+
+      pack_getc(f);
+
+      pack_getc(f);
+      pack_getc(f);
+
+      inst++;
+      if(c == 127)
+        inst = fm_drum;
+   }
+   pack_fclose(f);
+   return 0;
+}
+
+int load_op2(char *filename)
+{
+  char secondaries[256];
+  return load_op2_extra(filename, secondaries);
+}
+
 // ----------------------------------------------------------------------------------------------
 // fm_init: Setup the adlib driver.
 static int fm_init(int voices)
@@ -952,6 +1310,10 @@ static int fm_init(int voices)
    int i;
 
    fm_reset(1);
+
+#ifdef FM_SECONDARY
+   memset(fm_secondary, 0, sizeof(FM_INSTRUMENT) * (128 + 47));
+#endif
 
    for (i=0; i<2; i++) 
    {
@@ -969,6 +1331,9 @@ static int fm_init(int voices)
    LOCK_VARIABLE(midi_adlib);
    LOCK_VARIABLE(fm_instrument);
    LOCK_VARIABLE(fm_drum);
+#ifdef FM_SECONDARY
+   LOCK_VARIABLE(fm_secondary);
+#endif
    LOCK_VARIABLE(_fm_port);
    LOCK_VARIABLE(fm_offset);
    LOCK_VARIABLE(fm_freq);
@@ -985,9 +1350,15 @@ static int fm_init(int voices)
    LOCK_VARIABLE(fm_drum_mask);
    LOCK_VARIABLE(fm_drum_mode);
    LOCK_VARIABLE(fm_key);
-   LOCK_VARIABLE(fm_keyscale);
+   LOCK_VARIABLE(fm_keyscale1);
+   LOCK_VARIABLE(fm_keyscale2);
    LOCK_VARIABLE(fm_feedback);
-   LOCK_VARIABLE(fm_level);
+   LOCK_VARIABLE(fm_noteoffs);
+#ifdef FM_SECONDARY
+   LOCK_VARIABLE(fm_finetune);
+#endif
+   LOCK_VARIABLE(fm_level1);
+   LOCK_VARIABLE(fm_level2);
    LOCK_VARIABLE(fm_patch);
    LOCK_VARIABLE(fm_delay_1);
    LOCK_VARIABLE(fm_delay_2);

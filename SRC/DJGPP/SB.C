@@ -340,7 +340,7 @@ static void sb_play_buffer(int size)
 	  sb_write_dsp((size-1) >> 8);
 	  sb_write_dsp(0x91);                  // 91h = High-speed 8 bit mono 
    }*/
-   else if (sb_dsp_ver < 0x400) {          /* 8 bit auto-initialised */
+   else if (sb_dsp_ver < 0x400) {          // 8 bit auto-initialised 
       sb_write_dsp(0x48);
       sb_write_dsp((size-1) & 0xFF);
       sb_write_dsp((size-1) >> 8);
@@ -518,9 +518,7 @@ static int sb_detect()
    }
    else {
       if (sb_dsp_ver > sb_hw_dsp_ver) {
-	 sb_hw_dsp_ver = sb_dsp_ver = -1;
 	 strcpy(allegro_error, "Older SB version detected");
-	 return FALSE;
       }
    }
 

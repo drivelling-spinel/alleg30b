@@ -1,0 +1,325 @@
+#################################################
+#                                               #
+#     Allegro makefile, by Shawn Hargreaves     #
+#                                               #
+#     The 'clean' and 'uninstall' targets       #
+#     require rm from the fileutils package     #
+#                                               #
+#################################################
+
+# replace this definition if you are using PGCC!
+# PGCC=1
+
+.PHONY: baddjgpp baddjdev badgcc badbnu badmake badtxi badpath badalleg
+
+# check that the DJGPP environment variable is set
+ifndef DJDIR
+baddjgpp:
+	@echo Your DJGPP environment variable is not set correctly! It should
+	@echo point to the djgpp.env file: see the djgpp readme.1st for details.
+endif
+
+# check that the djdev package is installed
+ifeq ($(wildcard $(DJDIR)/bin/djasm.exe),)
+baddjdev:
+	@echo Missing djgpp package! You need to install djdev201.zip (or whatever the
+	@echo latest version is). Download this from wherever you got djgpp, and unzip
+	@echo it into the root of your djgpp directory.
+endif
+
+# check that the gcc package is installed
+ifeq ($(wildcard $(DJDIR)/bin/gcc.exe),)
+badgcc:
+	@echo Missing djgpp package! You need to install gcc2721b.zip (or whatever the
+	@echo latest version is). Download this from wherever you got djgpp, and unzip
+	@echo it into the root of your djgpp directory.
+endif
+
+# check that the binutils package is installed
+ifeq ($(wildcard $(DJDIR)/bin/ld.exe),)
+badbnu:
+	@echo Missing djgpp package! You need to install bnu27b.zip (or whatever the
+	@echo latest version is). Download this from wherever you got djgpp, and unzip
+	@echo it into the root of your djgpp directory.
+endif
+
+# check that the make package is installed
+ifeq ($(wildcard $(DJDIR)/bin/make.exe),)
+badmake:
+	@echo Missing djgpp package! You need to install mak3761b.zip (or whatever the
+	@echo latest version is). Download this from wherever you got djgpp, and unzip
+	@echo it into the root of your djgpp directory.
+endif
+
+# check that the texinfo package is installed
+ifeq ($(wildcard $(DJDIR)/bin/makeinfo.exe),)
+badtxi:
+	@echo Missing djgpp package! You need to install txi390b.zip (or whatever the
+	@echo latest version is). Download this from wherever you got djgpp, and unzip
+	@echo it into the root of your djgpp directory. If you do not need the Info
+	@echo documentation, run \"make all\" to ignore this error.
+endif
+
+# check that djgpp/bin is pathed
+ifeq ($(wildcard $(addsuffix /djasm.exe,$(subst ;, ,$(PATH)))),)
+badpath:
+	@echo Your PATH is not set correctly! This must include the
+	@echo djgpp bin directory: see the djgpp readme.1st for details.
+endif
+
+# check that Allegro has a good directory structure
+ifeq ($(wildcard src/allegro.c),)
+badalleg:
+	@echo Bad Allegro installation! You did not preserve the directory structure
+	@echo while unzipping it: did you remember to use the -d flag with pkunzip?
+endif
+
+OBJ = obj/djgpp
+LIB = lib/djgpp/liballeg.a
+LIBDEST = $(DJDIR)/lib/liballeg.a
+INCDEST = $(DJDIR)/include/allegro.h
+DOCDEST = $(DJDIR)/info/allegro.inf
+DJP = $(DJDIR)/bin/djp.exe
+INTERNAL_H = src/internal.h src/djgpp/interndj.h
+
+ifeq ($(LFN),y)
+HTML = html
+else
+HTML = htm
+endif
+
+WFLAGS = -Wall -W -Werror -Wno-unused
+
+ifdef DEBUGMODE
+# build a debug version
+OFLAGS = -g
+LFLAGS =
+
+else
+ifdef PROFILEMODE
+# build with profiling information
+ifdef PGCC
+OFLAGS = -pg -mpentium -O6 -ffast-math
+else
+OFLAGS = -pg -m486 -O3 -ffast-math
+endif
+LFLAGS = -pg
+
+else
+# build a normal optimised version
+ifdef PGCC
+OFLAGS = -mpentium -O6 -ffast-math -fomit-frame-pointer
+else
+OFLAGS = -m486 -O3 -ffast-math -fomit-frame-pointer
+endif
+
+ifdef SYMBOLMODE
+# keep debug symbols
+LFLAGS =
+
+else
+# strip debug symbols
+LFLAGS = -s
+
+endif
+endif
+endif
+
+CFLAGS = -I. -Isrc -Isrc/djgpp -I$(OBJ) $(WFLAGS) $(OFLAGS)
+SFLAGS = -I. -Isrc -Isrc/djgpp -I$(OBJ) $(WFLAGS)
+
+VPATH = demo docs examples setup src tests tools src/djgpp
+
+PROGRAMS = demo keyconf setup digitest mathtest miditest play playfli test \
+	   vesainfo colormap dat dat2s exedat grabber pack pat2dat rgbmap \
+	   examples
+
+SYSOBJS = adlib.o ati.o awedata.o bank.o cirrus.o dma.o dpmi.o emu8k.o \
+	  emu8kmid.o wss.o irq.o irqwrap.o joystick.o keyboard.o mouse.o \
+	  mpu.o paradise.o s3.o sb.o timer.o trident.o tseng.o vbeaf.o \
+	  vesa.o video7.o essaudio.o sndscape.o guspnp.o
+
+OBJS = allegro.o blit.o blit8.o blit16.o blit24.o blit32.o bmp.o cblend15.o \
+       cblend16.o colblend.o color.o config.o cpu.o datafile.o digmid.o \
+       file.o fli.o flood.o fsel.o gfx.o gfx8.o gfx15.o gfx16.o gfx24.o \
+       gfx32.o gfxdrv.o graphics.o gui.o guiproc.o inline.o lbm.o math.o \
+       math3d.o midi.o misc.o mixer.o modesel.o modex.o pcx.o polygon.o \
+       quantize.o readbmp.o scanline.o snddrv.o sound.o spline.o sprite.o \
+       sprite8.o sprite15.o sprite16.o sprite24.o sprite32.o stream.o \
+       stretch.o text.o tga.o vga.o vtable.o vtable8.o vtable15.o \
+       vtable16.o vtable24.o vtable32.o xgfx.o $(SYSOBJS)
+
+LIB_OBJS = $(addprefix $(OBJ)/, $(OBJS))
+
+DOCS = NEWS ChangeLog docs/changes.$(HTML) \
+       faq.txt docs/faq.$(HTML) \
+       AUTHORS THANKS docs/thanks.$(HTML) \
+       allegro.txt docs/allegro.$(HTML) docs/allegro.txi docs/allegro.inf
+
+.PRECIOUS: $(OBJ)/%.o
+
+.PHONY: all msg lib install uninstall docs clean veryclean $(PROGRAMS)
+
+all: msg $(LIB) $(PROGRAMS) docs install
+	@echo All done.
+	@echo To use Allegro, #include allegro.h and link with liballeg.a
+	@echo Example command line: gcc foobar.c -o foobar.exe -lalleg
+	@echo Enjoy!
+
+msg:
+	@echo Compiling Allegro. Please wait...
+
+lib: $(LIB)
+
+install: $(LIBDEST) $(INCDEST) $(DOCDEST)
+
+docs: $(DOCS)
+
+$(LIBDEST): $(LIB)
+	copy lib\djgpp\liballeg.a $(subst /,\,$(LIBDEST))
+
+$(INCDEST): allegro.h
+	copy allegro.h $(subst /,\,$(INCDEST))
+
+$(DOCDEST): docs/allegro.inf
+    ifneq ($(wildcard $(DJDIR)/bin/makeinfo.exe),)
+	copy docs\allegro.inf $(subst /,\,$(DOCDEST))
+    else
+	@echo makeinfo not installed: skipping copy of allegro.inf
+    endif
+
+$(OBJ)/%.o: %.c allegro.h
+	gcc $(CFLAGS) -o $@ -c $<
+
+$(OBJ)/%.o: %.S asmdefs.inc $(OBJ)/asmdef.inc
+	gcc $(SFLAGS) -o $@ -c $<
+
+$(OBJ)/%.o: %.s asmdefs.inc $(OBJ)/asmdef.inc
+	gcc -x assembler-with-cpp $(SFLAGS) -o $@ -c $<
+
+*/%.exe: $(OBJ)/%.o $(LIB)
+	gcc $(LFLAGS) -o $@ $< $(LIB)
+
+docs/%.inf: docs/%.txi
+    ifneq ($(wildcard $(DJDIR)/bin/makeinfo.exe),)
+	makeinfo --no-split -o $@ $<
+    else
+	@echo makeinfo not installed: skipping generation of allegro.inf
+    endif
+
+docs/%.txi: docs/%._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -texinfo $@ $<
+
+docs/%.$(HTML): docs/%._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -$(HTML) $@ $<
+
+%.txt: docs/%._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -ascii $@ $<
+
+NEWS: docs/changes._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -part -ascii NEWS docs/changes._tx
+
+ChangeLog: docs/changes._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -ascii ChangeLog docs/changes._tx
+
+AUTHORS: docs/thanks._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -part -ascii AUTHORS docs/thanks._tx
+
+THANKS: docs/thanks._tx $(OBJ)/makedoc.exe
+	$(OBJ)/makedoc.exe -part -ascii THANKS docs/thanks._tx
+
+$(OBJ)/makedoc.exe: docs/makedoc.c
+	gcc $(CFLAGS) $(LFLAGS) -o $@ docs/makedoc.c
+
+$(OBJ)/asmdef.inc: $(OBJ)/asmdef.exe
+	$(OBJ)/asmdef.exe $(OBJ)/asmdef.inc
+
+$(OBJ)/asmdef.exe: src/asmdef.c allegro.h $(INTERNAL_H)
+	gcc $(CFLAGS) $(LFLAGS) -o $@ src/asmdef.c
+
+$(OBJ)/setupdat.s $(OBJ)/setupdat.h: setup/setup.dat tools/dat2s.exe
+	tools/dat2s.exe setup/setup.dat -o $(OBJ)/setupdat.s -h $(OBJ)/setupdat.h
+
+$(OBJ)/setupdat.o: $(OBJ)/setupdat.s
+	gcc $(SFLAGS) -o $(OBJ)/setupdat.o -c $(OBJ)/setupdat.s
+
+setup/setup.exe: $(OBJ)/setup.o $(OBJ)/setupdat.o $(LIB)
+	gcc $(LFLAGS) -o setup/setup.exe $(OBJ)/setup.o $(OBJ)/setupdat.o $(LIB)
+    ifneq ($(wildcard $(DJP)),)
+	-$(DJP) -q setup/setup.exe
+    endif
+
+tools/dat.exe: $(OBJ)/dat.o $(OBJ)/datedit.o $(LIB)
+	gcc $(LFLAGS) -o tools/dat.exe $(OBJ)/dat.o $(OBJ)/datedit.o $(LIB)
+
+tools/dat2s.exe: $(OBJ)/dat2s.o $(OBJ)/datedit.o $(LIB)
+	gcc $(LFLAGS) -o tools/dat2s.exe $(OBJ)/dat2s.o $(OBJ)/datedit.o $(LIB)
+
+tools/grabber.exe: $(OBJ)/grabber.o $(OBJ)/datedit.o $(LIB)
+	gcc $(LFLAGS) -o tools/grabber.exe $(OBJ)/grabber.o $(OBJ)/datedit.o $(LIB)
+
+tools/pat2dat.exe: $(OBJ)/pat2dat.o $(OBJ)/datedit.o $(LIB)
+	gcc $(LFLAGS) -o tools/pat2dat.exe $(OBJ)/pat2dat.o $(OBJ)/datedit.o $(LIB)
+
+$(LIB): $(LIB_OBJS)
+	ar rs $(LIB) $(LIB_OBJS)
+
+clean:
+	-rm -v obj/djgpp/*.* lib/djgpp/*.* docs/*.$(HTML) docs/*.txi docs/*.inf
+
+veryclean: clean
+	-rm -v allegro.txt AUTHORS ChangeLog faq.txt NEWS THANKS \
+	       demo/*.exe examples/*.exe setup/*.exe tests/*.exe tools/*.exe
+
+uninstall:
+	-rm $(LIBDEST)
+	-rm $(INCDEST)
+	-rm $(DOCDEST)
+	@echo All gone!
+
+demo: demo/demo.exe
+keyconf: setup/keyconf.exe
+setup: setup/setup.exe
+digitest: tests/digitest.exe
+mathtest: tests/mathtest.exe
+miditest: tests/miditest.exe
+play: tests/play.exe
+playfli: tests/playfli.exe
+test: tests/test.exe
+vesainfo: tests/vesainfo.exe
+colormap: tools/colormap.exe
+dat: tools/dat.exe
+dat2s: tools/dat2s.exe
+exedat: tools/exedat.exe
+grabber: tools/grabber.exe
+pack: tools/pack.exe
+pat2dat: tools/pat2dat.exe
+rgbmap: tools/rgbmap.exe
+
+examples: examples/ex1.exe 
+examples: examples/ex17.exe 
+
+$(OBJ)/demo.o: demo.h
+$(OBJ)/adlib.o: fm_instr.h
+$(OBJ)/irq.o: asmdefs.inc $(OBJ)/asmdef.inc
+$(OBJ)/sprite.o $(OBJ)/stretch.o: opcodes.h
+$(OBJ)/emu8k.o $(OBJ)/emu8kmid.o: emu8k.h
+$(OBJ)/dat.o $(OBJ)/datedit.o $(OBJ)/dat2s.o $(OBJ)/grabber.o $(OBJ)/pat2dat.o: datedit.h
+$(OBJ)/ex12.o $(OBJ)/ex13.o: example.h
+$(OBJ)/ex21.o: running.h
+$(OBJ)/blit8.o $(OBJ)/blit16.o $(OBJ)/blit24.o $(OBJ)/blit32.o: blit.inc
+$(OBJ)/sprite8.o $(OBJ)/sprite15.o $(OBJ)/sprite16.o $(OBJ)/sprite24.o $(OBJ)/sprite32.o: sprite.inc
+$(OBJ)/setup.o: $(OBJ)/setupdat.h
+
+INTERNAL_DEPS = adlib.o allegro.o ati.o blit.o bmp.o cirrus.o config.o cpu.o \
+		datedit.o datafile.o digmid.o dma.o file.o fli.o flood.o \
+		gfx.o grabber.o graphics.o gui.o guiproc.o wss.o inline.o \
+		irq.o joystick.o keyboard.o keyconf.o lbm.o midi.o mixer.o \
+		modex.o mouse.o mpu.o paradise.o pat2dat.o pcx.o polygon.o \
+		readbmp.o sb.o setup.o sprite.o s3.o sound.o spline.o \
+		stream.o text.o tga.o timer.o tseng.o vbeaf.o vesa.o vga.o \
+		video7.o vtable8.o vtable15.o vtable16.o vtable24.o vtable32.o \
+                essaudio.o sndscape.o guspnp.o
+
+$(addprefix $(OBJ)/, $(INTERNAL_DEPS)): $(INTERNAL_H)
+

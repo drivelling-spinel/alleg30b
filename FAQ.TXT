@@ -1,0 +1,296 @@
+                ___  _ _                        _____ ___   ___ 
+               / _ \| | | ___  __ _ _ __ ___   |  ___/ _ \ / _ \ 
+              | |_| | | |/ _ \/ _` | '__/ _ \  | |_ | |_| | | | |
+              |  _  | | |  __/ (_| | | | (_) | |  _||  _  | |_| |
+              |_| |_|_|_|\___|\__, |_|  \___/  |_|  |_| |_|\__\_\
+                              |___/ 
+
+
+
+   What is Allegro?
+
+      See readme.txt.
+
+
+   Where can I get it?
+
+      From any SimTel mirror, in the directory gnu/djgpp/v2tk/, or from the 
+      Allegro homepage, http://www.talula.demon.co.uk/allegro/.
+
+
+   How do I use it?
+
+      See allegro.txt.
+
+
+   What is DJGPP?
+
+      An MSDOS port of the GNU C/C++ compiler, by DJ Delorie and friends. 
+      Great stuff...
+
+
+   Where can I get it?
+
+      From any SimTel mirror, in the directory gnu/djgpp/, or from DJ's 
+      site, http://www.delorie.com/djgpp/.
+
+
+   How do I use it?
+
+      See the readme.1st file that comes with djgpp. Most of the problems 
+      that people have with Allegro are due to them not installing djgpp 
+      correctly, so please do be sure to read this!
+
+
+   I'm confused by the installation instructions in readme.txt. What is this 
+   make.exe program I'm supposed to run?
+
+      Make is part of the standard djgpp distribution, in v2gnu/mak*b.zip 
+      (whatever the latest version number is). You should get this from 
+      wherever you got djgpp.
+
+
+   Make doesn't work properly.
+
+      Are you sure that you have installed djgpp correctly? Check the 
+      instructions in the djgpp readme.1st file, and in particular confirm 
+      that you have set the DJGPP environment variable and added the 
+      djgpp\bin directory to your path.
+
+
+   My djgpp installation is fine, but make still doesn't work properly.
+
+      Are you sure that you are using the GNU make program, and not some 
+      other version like the Borland one? If in doubt, run "make -v" and 
+      check that the GNU copyright message is displayed.
+
+
+   When I run make, it asks me for some parameters. What do I type?
+
+      You shouldn't be running make from the Win95 explorer! Bring up a DOS 
+      box, change to your Allegro directory, and type "make" at the command 
+      prompt.
+
+
+   When I run make, it says "reloc refers to symbol 'bss' which is not being 
+   output".
+
+      This seems to be a problem with the replacement linker from the 
+      RSXNTDJ package. Either go back to using the standard djgpp linker, or 
+      remove the "-s" flag from the Allegro makefile. If anyone knows why 
+      this happens, and how I can avoid it, I'd like to know about it!
+
+
+   Even though I included allegro.h, when I try to compile a program using 
+   Allegro, I get lots of errors like:
+   C:\TEMP\ccdaaaaa(.text+0x9):x.c: undefined reference to `allegro_init'
+   C:\TEMP\ccdaaaaa(.text+0xe):x.c: undefined reference to `install_keyboard'
+
+      You haven't read the docs, have you? :-) You need to link your program 
+      with the library file, liballeg.a. First, make sure you have installed 
+      everything properly (running make should do this for you). Second, if 
+      you are compiling from the command prompt or with a makefile, add 
+      -lalleg to the end of your gcc command line, or if you are using 
+      Rhide, go to the Options/Libraries menu, type 'alleg' into the first 
+      empty field, and make sure the box next to it is checked.
+
+
+   I'm trying to compile the grabber, but it doesn't work!
+
+      The grabber needs to be linked with the code in datedit.c. But you 
+      shouldn't have to worry about doing this by hand: just run "make" and 
+      that will build everything for you.
+
+
+   I give up: I can't compile this! Please can you send me a precompiled 
+   version?
+
+      No, sorry. For starters, liballeg.a is about 450k, but you'd probably 
+      also want  various utilities like the grabber, sound setup, etc. And 
+      what about all the example programs? If I included compiled versions 
+      of everything, a binary distribution would be over 7 megs: way too big 
+      to be practical! More seriously though, there just isn't any reason 
+      why you can't build it yourself. A compiler is a deterministic 
+      process: given a particular input file and command line, it will 
+      always produce the same output. If this isn't working, you either have 
+      the wrong input files (ie. your copy of Allegro is broken in some 
+      way), or the wrong command line (it is hard to see how that could 
+      happen, since all you have to do is type "make"...) or your compiler 
+      is broken, ie. you didn't install djgpp properly. You need to find and 
+      fix the problem, not just sweep it under the carpet by getting someone 
+      else to compile Allegro for you...
+
+
+   Can I use Allegro with my Microsoft/Watcom/Borland compiler?
+
+      Nope.
+
+
+   Can I use Allegro to write programs for Linux or DirectX?
+
+      Not at the moment, but ports to both of these platforms are under way. 
+      See the Allegro homepage for the latest information.
+
+
+   Does Allegro work under Windows NT?
+
+      Your mileage may vary. Some people have reported problems, while 
+      others say that it works fine. I don't have access to NT myself, so 
+      there is nothing I can do about it either way, and to be honest I 
+      don't care very much :-) If you want to run DOS programs, use DOS!
+
+
+   Does Allegro work under OpenDOS?
+
+      Yes, but with some caveats. If you are using the OpenDOS version of 
+      EMM386, you must disable their DPMI implementation (specify DPMI=OFF 
+      on the EMM386.EXE device line in your config.sys). You should also 
+      make sure the PIC=OFF flag is set, but this is the default so it won't 
+      be a problem unless you have specifically enabled it.
+
+
+   How can I extend the 256k limit on Mode-X video memory? I have two megs 
+   in my card.
+
+      You can't. The limit is imposed by the VGA hardware, not by Allegro. 
+      To access more than 256k of video memory you need to use an SVGA mode, 
+      which means either switching to a higher resolution or getting a copy 
+      of UniVBE, which provides several low resolution SVGA modes.
+
+
+   How can I display several different images at the same time? When I show 
+   the second one it messes up the palette for the first.
+
+      That is how the video hardware works: there can only be one palette in 
+      use at any given moment. Either convert your images so that they all 
+      use the same palette (see the Allegro homepage for some utilities that 
+      can help with this...) or switch to a truecolor graphics mode.
+
+
+   My colors always come out wrong. And how can I make a greyscale palette 
+   with 256 different shades?
+
+      The VGA hardware only uses 6 bits for each color component, which 
+      means the red, green, and blue values in the palette structure range 
+      from 0 to 63, not all the way up to 255. That gives you a potential 
+      2^18 = 262144 different colors, or 64 shades of grey. If you need more 
+      than this you could try using VESA function 0x4F08 to select an 8 bit 
+      wide DAC, but Allegro doesn't support this directly and I don't know 
+      how reliable it will be across different hardware.
+
+
+   The textout() function doesn't work after I use any of the GUI routines!
+
+      One of the GUI objects has changed the text_mode() setting while it 
+      was drawing itself. Call text_mode() again to select whatever 
+      background color you want to use.
+
+
+   Should I use regular bitmaps, RLE sprites, or compiled sprites?
+
+      It depends on exactly what you are doing. If your images are totally 
+      opaque, there is no advantage to using an RLE sprite, and it will 
+      probably be faster to use a regular bitmap with the blit() function. 
+      If your graphics contain masked areas, an RLE sprite will almost 
+      always be both smaller and faster than the draw_sprite() function. 
+      Compiled sprites are in general quite a bit faster than both the 
+      others for masked images, and slightly faster for opaque graphics, but 
+      this is far more variable. They are at their best with small sprites, 
+      on older machines and in mode-X, and may actually be slower than 
+      blit() when using SVGA modes on a pentium (the large size of a 
+      compiled sprite is very bad for the cache performance).
+
+
+   Why not use some sort of dynamic linking system for the graphics and 
+   sound drivers?
+
+      There is no easy way to do that, because many pieces of code are 
+      shared between several different drivers, and the hardware drivers 
+      depend on a lot of helper functions from the core lib. The djgpp DXE 
+      format is nowhere near flexible enough to support this, and I don't 
+      want to make Allegro dependent on any other dynamic linking packages.
+
+
+   Why not make a "lite" version of Allegro? I don't need any of the sound, 
+   maths, or GUI routines...
+
+      There is no need. The linker will only include the parts of the 
+      library that you actually use, so if you don't call any of, say, the 
+      texture mapping or FLIC playing functions, they will be left out of 
+      your executable. This doesn't work perfectly because a lot of the 
+      Allegro code uses tables of function pointers that cause some 
+      unnecessary routines to be linked in, so the majority of the graphics 
+      functions will be included in every executable, but I have tried to 
+      keep this to a minimum. See allegro.txt for information about more 
+      precise ways to remove some of the graphics and sound drivers.
+
+
+   Why can't Allegro read GIF files?
+
+      Unisys has a patent on the LZW compression algorithm that is used by 
+      the GIF format. I want everything in Allegro to be freely usable 
+      without any restrictions whatsoever, which means I can't include any 
+      code that is subject to licencing or the payment of royalties.
+
+
+   Why doesn't it work with my video card?
+
+      Get a copy of UniVBE (even if it already works fine, you should get 
+      UniVBE anyway because it is cool :-) If it still doesn't work, send me 
+      a copy of the output from "vesainfo -v" along with a description of 
+      the problem.
+
+
+   My program crashes all the time. Could this be a bug in Allegro?
+
+      Perhaps. Try to isolate the smallest fragment of code that is able to 
+      reproduce the problem, and I'll have a look at it. If you can send me 
+      a 10 line program, I will fix it. 100 lines, and I can probably fix 
+      it. 1000 lines, and I don't have a chance :-)
+
+
+   Can I use Allegro in my <whatever> commercial application?
+
+      Sure. See the swapware terms in readme.txt. I don't mind what you do 
+      with it, and there are no problems with commercial usage. Just sending 
+      me a copy of your program will be plenty to satisfy the swapware 
+      requirement...
+
+
+   When will <foobar> be finished? I can't wait...
+
+      Whenever it is done! A little encouragment is always welcome, but I 
+      don't have any completion deadlines and I'm not going to make one up 
+      for you :-) As soon as it is finished, it will be released.
+
+
+   Where can I find a set of instrument samples for the DIGMID driver?
+
+      See the Allegro homepage for some links. You can use Gravis patches 
+      (.pat format), or SoundFont 2.0 (.sf2) files, but the latter must be 
+      converted into a patches.dat file with the pat2dat utility.
+
+
+   Where can I find example source code and add-on packages?
+
+      Check the Allegro homepage, http://www.talula.demon.co.uk/allegro/.
+      If you have anything to add to this, please send me the URL!
+
+
+   Why is it considered good coding practice to define PI as a constant, 
+   rather than just using the value 3.141592 in my code?
+
+      It simplifies the maintenance of your program, in case the value of PI 
+      ever needs to be changed. Also it will make your program more portable 
+      to other compilers that use different values of PI.
+
+
+   I'm still confused. Where can I get help?
+
+      From the Allegro mailing list (allegro@canvaslink.com), the djgpp 
+      usenet group (comp.os.msdos.djgpp), the #allegro channel on EFnet, or 
+      by writing to me directly (shawn@talula.demon.co.uk). See readme.txt 
+      for details...
+
+
+

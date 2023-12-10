@@ -1,0 +1,320 @@
+
+=====================================================================
+============ Changes from 3.0 beta to release (Dec 1997) ============
+=====================================================================
+
+   The pat2dat utility can now import instruments from AWE32 SoundFont files.
+
+   Optimised the DIGMID patch loader and fixed a couple of bugs.
+
+   Ove Kaaven fixed the ATI Mach64 driver.
+
+   The config file can now mention several possible video drivers, using 
+   lines in the form gfx_driver=x, gfx_driver2=x, etc.
+
+   Improved the native SVGA driver helper functions, making it easier to add 
+   truecolor support to the register level drivers.
+
+   Double-clicking on a font object in the grabber now allows you to view 
+   the extended characters as well as normal ASCII.
+
+   Markus Oberhumer corrected a potential problem with the Video-7 
+   initialisation code.
+
+   Markus Oberhumer, Bitland, and Sormuras all sent me mapping tables for 
+   the German keyboard layout. Coordination of effort: who needs it? :-)
+
+   Mathieu Lafon improved the French keyboard mapping.
+
+   Fixed some bugs in the MIDI voice allocation system.
+
+   Added a -k (keep names) option to the dat utility.
+
+   The setup program now uses the ALLEGRO environment variable to locate the 
+   keyboard.dat file.
+
+   Fixed a problem with < and > characters in the HTML documentation.
+
+
+
+=================================================================
+============ Changes from 2.2 to 3.0 beta (Nov 1997) ============
+=================================================================
+
+   Merged in George's improved instrument parameters for the AWE32 driver.
+
+   The pat2dat utility can now reduce sample data from 16 to 8 bits (saves 
+   space, and the DIGMID driver only uses 8 bits in any case).
+
+   Added yet another version of the mouse handler, this time in an attempt 
+   to make it work more reliably under Windows NT.
+
+   Frodo Baggins added a mapping table for Portuguese keyboards.
+
+   Added an external tool "shell" function to the grabber.
+
+   Added a "box grab" function to the grabber, which uses a color #255 
+   bounding box to determine the extent of the sprite to grab.
+
+   Santeri Saarimaa added a Finnish keyboard mapping.
+
+   Finished writing the pat2dat utility, and the DIGMID driver is working a 
+   lot better now.
+
+   Mathieu Lafon added support for the Pause and PrtScr keys, and changed 
+   the key[] array to a bitfield indicating whether either or both of the 
+   normal and extended versions of the key are pressed. This remains 
+   compatible with the "if (key[KEY_*])" syntax, but also allows you to 
+   distinguish between, for example, the Enter key on the numeric pad and 
+   the one next to the right shift key.
+
+   Fixed a bug in the handling of config variables that don't belong to any 
+   section.
+
+   The makefile now tries to detect and warn people about some of the more 
+   common installation errors.
+
+   The HTML version of the documentation now uses a short .htm file 
+   extension if it is built on a system with LFN disabled.
+
+   Keyboard mapping files now only bother saving the entries that differ 
+   from the default US mapping. This makes the maps a great deal smaller!
+
+   Changed the default font and keyboard mapping tables from DOS codepage 
+   437 to the standard ISO charset (first part of Unicode). If you have made 
+   a keyboard config using the old codepage it will need to be updated, but 
+   don't worry, I have a script that can do this very easily.
+
+   Fixed a bug in the detection of font formats (fixed or proportional) when 
+   grabbing from a bitmap font.
+
+   Added an editable loop point to the MIDI player (thanks to George for 
+   sorting out how to do this...)
+
+   Rewrote the mouse handler to track the position itself, using only the 
+   mickey counters from the int 0x33 driver. Hopefully this will fix the 
+   problem with buggy Logitech drivers...
+
+   Added a mouse_pos variable containing both the X and Y values in one 32 
+   bit location, to allow a single instruction read during tight polling 
+   loops.
+
+   The grabber now supports multiple selection, and has a new "ungrab" 
+   command that copies from a bitmap object into the scratch buffer (you can 
+   use this to generate palettes from truecolor images, or to re-grab a 
+   smaller area from the image).
+
+   Added multiple selection abilities to the GUI listbox object.
+
+   Theuzifan improved the cpu detection for Cyrix chips.
+
+   Mathieu Lafon added a French keyboard mapping.
+
+   Richard Mitton wrote an example program demonstrating how to fake a 12 
+   bit truecolor display on an 8 bit card.
+
+   Michal Mertl added a routine for generating optimised palettes for a 
+   specific truecolor image.
+
+   Optimised the getr/g/b() functions. Converting between different color 
+   depths should be much faster now...
+
+   Scott Harrison added code to detect OpenDOS, and use the i_love_bill mode 
+   if their version of EMM386 is in use.
+
+   Added some new example programs.
+
+   The makedoc utility now converts between the DOS and Windows extended 
+   character sets when producing HTML output files.
+
+   Ettore Perazzoli made a spectacular optimisation to the linear -> 
+   mode-X blitting function.
+
+   Added a grid option to the dat utility, to specify which region of a 
+   bitmap you want to grab.
+
+   Fixed a bug in blitting truecolor bitmaps onto mode-X destinations.
+
+   Fixed a bug that was preventing the Adlib volume from being changed when 
+   only MIDI sound drivers were installed.
+
+   The grabber can now be run in video modes other than 640x480 (it doesn't 
+   look very nice in lower resolutions, though :-)
+
+   Added a new fake scancode for the extended / key (the one on the numeric 
+   keypad) so that the two keys can be distinguished from each other.
+
+   Joaquin Hierro Diaz made a mapping table for Spanish keyboards.
+
+   The setup utility can now be used to select a keyboard layout and to 
+   calibrate the joystick, as well as for the sound hardware.
+
+   Moved some of the documentation to different locations, so hopefully 
+   people will now be less likely to miss the faq.txt, and to bring it 
+   closer in line with the standard GNU distribution format.
+
+   Better keyboard configuration system. There is now a proper utility for 
+   setting up the mapping tables, the tables can be read from external 
+   files, and it properly supports the alt-gr and accent escape keys.
+
+   Menu items can now be disabled, have check marks next to them, and 
+   support right aligned text eg. for displaying keyboard shortcuts, there 
+   is a new "void *dp" field in the menu structure, and the click callback 
+   routines can now use the global pointer "active_menu" to determine which 
+   option they were called by, if a single routine is shared by several menu 
+   items.
+
+   Peter Palotas added an input callback to the keyboard routines, and event 
+   flags to the mouse callback.
+
+   Added a -pal option to the dat utility.
+
+   Grzegorz Ludorowski made some new graphics for the demo game.
+
+   Moved some code to new files and added a bunch of macros so you can 
+   remove unused graphics and sound drivers at link time.
+
+   Fabian Nunez added support for the Logitech Wingman Extreme joystick.
+
+   Chris La Mantia contributed a d_slider_proc() dialog object.
+
+   Sean Gugler added a routine for changing the keyboard LED state.
+
+   George Foot added pause and seek functions to the MIDI player.
+
+   Added the ability to append datafiles (in fact any files at all) onto the 
+   end of your program executable.
+
+   Merged in the AWE32 driver. Long live George!
+
+   Can now read RLE compressed TGA files.
+
+   Added a mouse movement callback function (useful for detecting double 
+   click events).
+
+   Stefan Eilert added support for dual joysticks.
+
+   Seymour Shlien contributed a routine for drawing justified text.
+
+   Krzysztof Krzyzaniak contributed a loader for .VOC sample files.
+
+   Added a rotate_scaled_sprite() function.
+
+   Now supports the Dvorak keyboard layout.
+
+   Salvador Eduardo Tropea added a 320x100 VGA mode.
+
+   Implemented translucent and lit sprite and RLE sprite drawing functions 
+   for the truecolor modes.
+
+   Updated the sound setup utility.
+
+   The dat utility can now output makefile dependencies for automatically 
+   rebuilding the file when any of the source data changes.
+
+   Fixed some problems with the RGB <-> HSV conversion functions.
+
+   Truecolor image loading and grabber support.
+
+   Phil Frisbie provided some code to detect the CPU type.
+
+   Michal Mertl added 24 bit graphics modes. Hurrah!
+
+   Added functions for playing streams of digital audio data.
+
+   Chris La Mantia contributed a bitmap icon GUI object.
+
+   Doug Eleveld added a text box GUI object, plus an improved help system 
+   for the grabber.
+
+   Added support for UK and AZERTY keyboard layouts. More can easily be 
+   added if you send me the appropriate scancode->ASCII mapping tables...
+
+   Added get_align_matrix(), qtranslate_matrix(), and qscale_matrix() 
+   functions.
+
+   Added a draw_character() function for using sprites as monochrome pixel 
+   masks.
+
+   It is now safe to pass the same matrix as both input and output to the 
+   matrix_mul() function.
+
+   Paul Bartrum contributed some ellipse drawing functions.
+
+   Added some callbacks to the MIDI driver, allowing you to hook your own 
+   code into MIDI notes or marker events.
+
+   Added a function to measure mouse movement in terms of mickeys 
+   (difference since the last call) as well as in absolute screen 
+   coordinates.
+
+   VolkerOth made the d_edit_proc objects able to scroll, if the string is 
+   larger than the available space.
+
+   Added the ability to distinguish between the left and right Control and 
+   Alt keys.
+
+   Fabian Nunez added support for the extra keys on a Microsoft keyboard.
+
+   Added void *dp2 and void *dp3 fields to the dialog structure. This 
+   ought not to break any existing code, but will let you store a lot more 
+   data when creating custom objects.
+
+   The packfile functions can now directly open and read from datafile 
+   member objects, using fake filenames in the form "filename.dat#obj_name". 
+   This means that all the Allegro file access routines (eg. load_pcx() and 
+   set_config_file()) can now read from datafile objects as well as separate 
+   files.
+
+   Added miditest and digitest programs to allow more rigorous testing of 
+   the sound routines and patch sets, and a vesainfo program to check which 
+   video modes are available on any given card.
+
+   Jan Hubicka wrote a faster version of create_rgb_table().
+
+   The grabber now scales the bitmap preview if the image is too large to 
+   fit onto the screen.
+
+   Jorrit Rouwe provided a new and much cooler set of FM instrument 
+   definitions for the Adlib MIDI driver.
+
+   Added a function to load .IBK patch sets for use by the Adlib driver.
+
+   Added a wrapper allegro/ directory around the contents of the zip file, 
+   so it can now be safely unzipped into the main djgpp directory.
+
+   Richard Mitton added support for 6-button joysticks.
+
+   Truecolor (15, 16, and 32 bit) graphics modes.
+
+   Vastly improved sound routines (more flexible API, now supports up to 32 
+   simultaneous voices on the SB, sample-based MIDI playback driver, can 
+   reverse samples, volume/pan/pitch sweep effects, MIDI commands can be 
+   output on the fly as well as played from MIDI files, and lots of other 
+   goodies).
+
+   It is now possible to update the status of GUI dialogs incrementally from 
+   your own control loops, with an update_dialog() function, rather than 
+   completely transferring control to do_dialog().
+
+   Compressed files (including grabber datafiles) can now be encypted with a 
+   password.
+
+   Added a masked_blit() function, that skips zero pixels.
+
+   Added code to detect being run under Linux DOSEMU, and use the less 
+   demanding version of the timer code if this is the case.
+
+   Added a standardised configuration mechanism. The format for saved 
+   joystick calibration information has changed, so existing joystick files 
+   are no longer valid.
+
+   Added a textprintf() routine, which uses a printf() style format string.
+
+   Added a TexInfo version of the documentation (thanks for the help, 
+   Francois!)
+
+   Jonas Petersen added a save_bmp() function, and support for the OS/2 BMP 
+   format.
+
+

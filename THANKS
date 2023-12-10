@@ -1,0 +1,84 @@
+
+=================================
+============ Thanks! ============
+=================================
+
+   First, a big thank you to all the people who help me test and debug this 
+   code. It sometimes gets frustrating to receive hundreds of messages 
+   saying "it doesn't work!", but they are useful all the same...
+
+   Andre Baresel (baresel@informatik.hu-berlin.de),
+   and Craig Jackson (Craig.Jackson@launchpad.unc.edu),
+   provided a tremendous amount of information about SB hardware.
+
+   Charles Sandmann (sandmann@clio.rice.edu),
+   DJ Delorie (dj@delorie.com),
+   Eli Zaretskii (eliz@is.elta.co.il),
+   and everyone else who has contributed to djgpp. I love it.
+
+   Creative Labs.
+   Come on, let us not hold any grudges :-) They may have been evil tyrants 
+   in the past, but they were really quite helpful while George was writing 
+   the AWE driver...
+
+   C. Schwerdtfeger (schwerdt@physics.ubc.ca),
+   for his help (and enourmous patience!) in getting the SB Pro-I MIDI 
+   driver to work.
+
+   Finn Thoegersen, Nordbanevej 3 C, DK-7800 Skive, Denmark.
+   Most of my SVGA hardware information came from his VGADOC package.
+
+   Eric Jorgensen (smeagol@rt66.com).
+   Varmint's Audio Tools (VAT) gave me many useful ideas about how to play 
+   MIDI files.
+
+   Jamie O'Connell (JamieOConnell@msn.com).
+   Several of the new Adlib drum patches, and the specifications for the 
+   .IBK file format, came from his SBTimbre package.
+
+   Jean-Paul Mikkers (mikmak@stack.urc.tue.nl).
+   MikMod was the source of a lot of information about programming the SB, 
+   and also gave me the idea of dynamically reprogramming the PIT to get a 
+   really high resolution timer.
+
+   Joel H. Hunter (jhunter@kendaco.telebyte.com).
+   His SB library for djgpp is excellent, and helped me a lot.
+
+   John Pollard (74723.1626@compuserve.com).
+   The FM instrument definitions are based on his MID-KIT library.
+
+   Kendall Bennett and all the other cool people at SciTech Software.
+   These guys gave the world UniVBE, the VBE/AF API, and a lot of free 
+   information and example VESA code. Plus they very kindly sent me a copy 
+   of the VBE/AF spec when I wanted one.
+
+   Kris Heidenstrom (kheidens@actrix.gen.nz).
+   His PC timing FAQ was a big help.
+
+   Mark Feldman.
+   It goes without saying that the PCGPE was an invaluable resource.
+
+   Michael Abrash.
+   You just gotta love that man...
+
+   Paul Fenwick (bg914@freenet.carleton.ca).
+   Various bits of the mode-X code (notably the split screen stuff) came 
+   from his XLIBDJ library.
+
+   Robert Schmidt (robert@stud.unit.no).
+   The register values for the 400x* mode-X resolutions came from his TWEAK 
+   program.
+
+   Tom Grandgent (tgrand@canvaslink.com).
+   Organised and hosted the Allegro mailing list. Hurrah!
+
+   Vladimir Arnost (xarnos00@dcse.fee.vutbr.cz).
+   Provided hardware specs for the OPL3 chip.
+
+   Frank Zappa, Pink Floyd, the Doors, Tori Amos, and all the other great 
+   musicians who provide me with things to listen to while I am programming.
+
+   My parents, John and Nancy.
+   I would never have made it through all those late night coding sessions 
+   without the cafetiere they gave me last Christmas :-)
+

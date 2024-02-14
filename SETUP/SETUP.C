@@ -35,8 +35,6 @@
 
 
 /* these can be customised to suit your program... */
-//#define TITLE           "Allegro Setup " ALLEGRO_VERSION_STR " B"
-//#define TITLE           "DOOM M.B.F. - Allegro Setup"
 #define TITLE           "M.B.F. - Sound and Music Setup"
 #define CFG_FILE        "setup.cfg"
 #define KEYBOARD_FILE   "keyboard.dat"
@@ -1748,7 +1746,9 @@ int main()
    do {
    } while (update());
 
+   clear_to_color(buffer, 0);
    destroy_bitmap(buffer);
+   clear_to_color(screen, 0);
 
    for (i=0; i<num_keyboard_layouts; i++)
       free(keyboard_layouts[i]);
@@ -1790,12 +1790,14 @@ int main()
 
      set_config_file(CFG_FILE);
      fade_out(4);
+     set_pallete(black_palette);
      set_gfx_mode(GFX_TEXT, 320, 200, 0, 0);
      allegro_exit();
 
      return __dosexec_command_exec(engine, args, env);
    } 
 #endif
+
    return 0;
 }
 
